@@ -1,3 +1,6 @@
+# DO NOT RUN THIS SCRIPT
+# THE SCRIPT IS FOR CREATING DATASETS
+# AVAILABLE IN THE DIABEETUS PACKAGE
 #---- --- ---- --- ---- --- ---- --- ----#
 # Load libraries
 library(arrow)   # for creating, reading,
@@ -106,3 +109,55 @@ peek(chronic_data)
 
 tf2 <- tempfile(tmpdir = "data",fileext = ".parquet")
 write_dataset(chronic_data, tf2)
+
+#---- --- ---- --- ---- --- ---- --- ----#
+# Diabetes mellitus and treatment
+diabetes_mellitus <- merge_into_frame("Diabetes-Data",starts_with = "data-") |>
+  dplyr::rename(date = V1,
+         time = V2,
+         measurement = V3,
+         value = V4) |>
+  dplyr::mutate(value = as.numeric(value),
+                measurement = factor(measurement))
+
+peek(diabetes_mellitus)
+
+# Unknown values(5) in the data
+# [1] "0Hi" "0Lo" ""  "3A" "0''"
+
+is.na((as.numeric(diabetes_mellitus$value))) -> x
+unique(subset(diabetes_mellitus,x,select = measurement))
+# Measurements for which there are missing values
+#         measurement
+# 1113           60
+# 1147           62
+# 1165           48
+# 9961            0
+# 9962           33
+# 16467          57
+
+# Getting the total rows per data file
+root_dir <- getwd()
+folder <- as.character("Diabetes-Data")
+dirs <- omit_folders(root_dir)
+target_dirs <- grep(paste0("/", folder, "$"), dirs, value = TRUE)
+
+files <- list.files(target_dirs, full.names = TRUE)
+row_counts <- numeric(length(files))
+for (i in seq_along(files)) {
+  row_counts[i] <- nrow(read.delim(files[i], header = FALSE))
+}
+file_row_counts <- data.frame(
+  file = basename(files), # Get only the file names, not full paths
+  rows = row_counts
+)
+print(file_row_counts)
+
+participants <- paste0("P_", sprintf("%02d", 1:70))
+data_rows <- file_row_counts$rows[1:70]
+participant_labels <- rep(participants, times = data_rows)
+# Add a new column to diabetes_mellitus
+diabetes_mellitus$participant <- participant_labels
+
+tf3 <- tempfile(tmpdir = "data",fileext = ".parquet")
+write_dataset(diabetes_mellitus, tf3)
