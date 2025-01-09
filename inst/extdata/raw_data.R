@@ -107,8 +107,7 @@ chronic_data <- chronic_data_messy |>
 
 peek(chronic_data)
 
-tf2 <- tempfile(tmpdir = "data",fileext = ".parquet")
-write_dataset(chronic_data, tf2)
+write_dataset(chronic_data, tf1)
 
 #---- --- ---- --- ---- --- ---- --- ----#
 # Diabetes mellitus and treatment
@@ -159,5 +158,56 @@ participant_labels <- rep(participants, times = data_rows)
 # Add a new column to diabetes_mellitus
 diabetes_mellitus$participant <- participant_labels
 
-tf3 <- tempfile(tmpdir = "data",fileext = ".parquet")
-write_dataset(diabetes_mellitus, tf3)
+
+write_dataset(diabetes_mellitus, tf1)
+
+#---- --- ---- --- ---- --- ---- ---- ---- --- ----#
+# Hospitalized patient record diagnosed with diabetes
+# in 130 hospitals across the US from 1999–2008
+# https://onlinelibrary.wiley.com/doi/10.1155/2014/781670
+
+# The dataset represents ten years (1999-2008) of clinical
+# care at 130 US hospitals and integrated delivery networks.
+# It includes over 50 features representing patient and hospital
+# outcomes. Information was extracted from the database for
+# encounters that satisfied the following criteria.
+
+# (1)	It is an inpatient encounter (a hospital admission).
+# (2)	It is a diabetic encounter, that is, one during which
+# any kind of diabetes was entered into the system as a diagnosis.
+# (3)	The length of stay was at least 1 day and at most 14 days.
+# (4)	Laboratory tests were performed during the encounter.
+# (5)	Medications were administered during the encounter.
+
+# The data contains such attributes as patient number, race, gender,
+# age, admission type, time in hospital, medical specialty of admitting
+# physician, number of lab tests performed, HbA1c test result, diagnosis,
+# number of medications, diabetic medications, number of outpatient,
+# inpatient, and emergency visits in the year before the hospitalization, etc.
+
+hospital_path <- here::here(".data","diab_hosp_99","diabetic_data.csv")
+hospital_records <- read.csv(hospital_path,
+                             sep = ",",
+                             header = TRUE,
+                             stringsAsFactors = FALSE) |>
+  as.data.frame()
+
+hospital_data <- hospital_records |>
+  rename_with(~ str_replace_all(., "\\.", "_")) |>
+  rename(a1c_result = A1Cresult,
+         diabetes_med = diabetesMed) |>
+  mutate(across(where(is.character),
+           ~ na_if(., "?")),
+         race = as.factor(race),
+         gender = as.factor(gender),
+         age = as.factor(age),
+         payer_code = as.factor(payer_code),
+         medical_specialty = as.factor(medical_specialty),
+         diag_1 = as.factor(diag_1),
+         diag_2 = as.factor(diag_2),
+         diag_3 = as.factor(diag_3),
+         across(23:50,as.factor),
+         )
+
+write_dataset(hospital_data, tf1)
+
